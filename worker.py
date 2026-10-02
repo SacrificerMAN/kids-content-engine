@@ -97,7 +97,8 @@ def get_job(job_id:str):
 @app.post("/run")
 def run_job(job:RenderJob):
     if job.topic:
-        episode=create_topic_package(job.topic,ROOT,duration=job.duration)["episode"]
+        episode=create_topic_package(job.topic,ROOT,duration=job.duration)
+        episode=episode["episode"]
     elif job.episode:
         episode=safe_episode(job.episode)
     else:
@@ -109,3 +110,10 @@ def run_job(job:RenderJob):
             episode,publish=job.publish,dry_run=job.dry_run)}
     except Exception as exc:
         raise HTTPException(500,str(exc))
+
+@app.get("/demo-render")
+def demo_render(background_tasks:BackgroundTasks):
+    job=RenderJob(episode="content/demo_episode.json",duration=30,publish=False,dry_run=False)
+    data=STORE.create(job.model_dump())
+    background_tasks.add_task(process_job,data["id"],job)
+    return {"status":"accepted","job_id":data["id"],"message":"real demo render started"}
