@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from fastapi import FastAPI, HTTPException\nfrom fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, BackgroundTasks\nfrom fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pipeline.orchestrator import Orchestrator
 from pipeline.job_store import JobStore
@@ -32,21 +32,26 @@ def health():
 def root():
     return {"service":"kids-content-engine","status":"ready","version":"2.0.0"}
 
-@app.post("/jobs")
-def create_job(job:RenderJob):
-    if not job.episode and not job.topic:
-        raise HTTPException(400,"provide episode or topic")
-    data=STORE.create(job.model_dump())
+def process_job(job_id, job):
     try:
+        STORE.update(job_id, status="processing")
         episode=job.episode
         if job.topic:
             episode=create_topic_package(job.topic,ROOT,duration=job.duration)["episode"]
         else:
             episode=safe_episode(episode)
         result=Orchestrator(str(ROOT)).run(episode,publish=job.publish,dry_run=job.dry_run)
-        return STORE.update(data["id"],status="completed",result=result)
+        STORE.update(job_id,status="completed",result=result)
     except Exception as exc:
-        return STORE.update(data["id"],status="failed",error=str(exc))
+        STORE.update(job_id,status="failed",error=str(exc))
+
+@app.post("/jobs")
+def create_job(job:RenderJob, background_tasks: BackgroundTasks):
+    if not job.episode and not job.topic:
+        raise HTTPException(400,"provide episode or topic")
+    data=STORE.create(job.model_dump())
+    background_tasks.add_task(process_job, data["id"], job)
+    return {"status":"accepted","job_id":data["id"]}
 
 @app.get("/jobs/{job_id}")
 def get_job(job_id:str):
