@@ -1,19 +1,43 @@
 # Kids Content Engine
 
-Production-oriented orchestration for an original preschool 3D animation pipeline. It uses original characters/assets and does not reproduce another show's characters, branding, or episodes.
+Autonomous, original preschool 3D content production pipeline.
 
-Flow: Episode JSON -> validation -> procedural Blender scene recipe -> optional Blender render -> FFmpeg hooks -> QC -> publishing adapters.
+## Goal
 
-Railway runs the FastAPI orchestration API. Heavy Blender rendering is opt-in through RENDER_ENABLED=1 and should run on a Blender-capable worker. Default operation is safe dry-run mode.
+Give the engine a topic such as "colors", "animals", or "alphabet". The pipeline creates an original preschool episode package, generates a procedural 3D scene, renders an MP4, creates audio, runs QC, generates metadata and a thumbnail, and exposes gated publishing adapters.
 
-Endpoints: GET /health, GET /, POST /jobs, POST /run.
+## Flow
 
-Example POST /run body: {"episode":"content/demo_episode.json","publish":false,"dry_run":true}
+Topic -> episode generator -> scene JSON -> procedural Blender scene -> animated MP4 -> local TTS/audio -> final MP4 -> QC -> metadata/thumbnail -> publishing adapters.
 
-Variables: WORK_ROOT, RENDER_ENABLED, BLENDER_BIN, BLENDER_TIMEOUT_SEC, PUBLISH_ENABLED, YOUTUBE_ACCESS_TOKEN, FACEBOOK_ACCESS_TOKEN, INSTAGRAM_ACCESS_TOKEN.
+## API
 
-Credentials are environment variables only; never commit them.
+- GET `/health`
+- GET `/`
+- POST `/jobs` with `{"topic":"colors","duration":30,"dry_run":true}`
+- GET `/jobs/{job_id}`
+- POST `/run`
 
-GitHub Actions validates the project on pushes to main, on manual dispatch, and daily. Railway can automatically deploy new commits from the connected branch.
+Jobs currently execute synchronously inside the API process. For high-volume production, move the same orchestrator behind a queue and dedicated Blender workers.
 
-For real animation rendering, use a dedicated Blender-capable worker/GPU service and persistent object storage for MP4 artifacts. The API service should remain responsive and coordinate jobs rather than acting as a render farm.
+## Rendering
+
+The normal Railway API image is intentionally lightweight. Heavy Blender rendering uses `Dockerfile.render`, which installs Blender, FFmpeg and espeak-ng. Set `RENDER_ENABLED=1` on a Blender-capable worker. The Blender script writes an animated H.264 MP4.
+
+## Audio
+
+The render worker uses espeak-ng when available and falls back to a quiet generated audio bed. This is an engineering fallback, not a studio-quality child voice. A production TTS provider can be added behind the same `make_audio` interface.
+
+## Publishing
+
+Publishing remains credential-gated. YouTube, Facebook and Instagram must not be treated as successful until their adapters are implemented and tested with real platform credentials. The current publisher layer deliberately reports disabled/not-implemented rather than pretending success.
+
+## Safety and originality
+
+The engine creates original characters and story concepts. It is not designed to reproduce another children's show's characters, branding, episodes, or distinctive assets.
+
+## Configuration
+
+`WORK_ROOT`, `RENDER_ENABLED`, `BLENDER_BIN`, `BLENDER_TIMEOUT_SEC`, `PUBLISH_ENABLED`, `YOUTUBE_ACCESS_TOKEN`, `FACEBOOK_ACCESS_TOKEN`, `INSTAGRAM_ACCESS_TOKEN`.
+
+Never commit credentials.
