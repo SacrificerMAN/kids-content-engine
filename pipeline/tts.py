@@ -33,9 +33,13 @@ def synthesize(text, output):
     wav=_local_tts(text, output)\n    return wav
 
 def render_voice_track(text, duration, output):
-    raw=Path(output).with_suffix(".source")
-    synthesize(text,raw)
+    provider=os.getenv("TTS_PROVIDER","local").lower()
+    if provider=="local":
+        raw=_local_tts(text, Path(output).with_suffix(".wav"))
+    else:
+        raw=Path(output).with_suffix(".source")
+        synthesize(text,raw)
     subprocess.run(["ffmpeg","-y","-i",str(raw),"-t",str(duration),"-af",f"apad=pad_dur={duration}",
                     "-c:a","aac","-b:a","160k",str(output)],check=True,capture_output=True)
-    raw.unlink(missing_ok=True)
+    Path(raw).unlink(missing_ok=True)
     return str(output)
