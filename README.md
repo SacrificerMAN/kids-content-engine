@@ -10,15 +10,21 @@ Give the engine a topic such as "colors", "animals", or "alphabet". The pipeline
 
 Topic -> episode generator -> scene JSON -> procedural Blender scene -> animated MP4 -> local TTS/audio -> final MP4 -> QC -> metadata/thumbnail -> publishing adapters.
 
+## Studio UI
+
+The root URL serves a browser-based **Kids Content Studio** dashboard. It can submit topic jobs, choose preview vs real-render mode, inspect engine status, and monitor recent jobs.
+
 ## API
 
 - GET `/health`
-- GET `/`
+- GET `/` — Studio UI
+- GET `/api` — API status
+- GET `/jobs` — recent jobs
 - POST `/jobs` with `{"topic":"colors","duration":30,"dry_run":true}`
 - GET `/jobs/{job_id}`
-- POST `/run`
+- POST `/run` — synchronous execution endpoint
 
-Jobs currently execute synchronously inside the API process. For high-volume production, move the same orchestrator behind a queue and dedicated Blender workers.
+Jobs submitted through `/jobs` are accepted immediately and processed as FastAPI background tasks. For high-volume production, replace the in-process background task with a durable queue and dedicated Blender workers.
 
 ## Rendering
 
