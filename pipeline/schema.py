@@ -8,6 +8,8 @@ class Scene:
     duration: float
     actions: list[str] = field(default_factory=list)
     characters: list[str] = field(default_factory=list)
+    voice: str = ""
+    visual_prompt: str = ""
 
 @dataclass
 class Episode:
