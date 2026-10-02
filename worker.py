@@ -1,12 +1,13 @@
 import os
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, BackgroundTasks\nfrom fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pipeline.orchestrator import Orchestrator
 from pipeline.job_store import JobStore
 from pipeline.topic_pipeline import create_topic_package
 
-app=FastAPI(title="Kids Content Engine",version="2.0.0")
+app=FastAPI(title="Kids Content Engine",version="3.0.0")
 ROOT=Path(os.getenv("WORK_ROOT","/tmp/kids-content-engine")); ROOT.mkdir(parents=True,exist_ok=True)
 STORE=JobStore(str(ROOT))
 
@@ -26,15 +27,22 @@ def safe_episode(path:str):
 
 @app.get("/health")
 def health():
-    return {"status":"ok","service":"kids-content-engine","version":"2.0.0","render_enabled":os.getenv("RENDER_ENABLED","0")}
+    return {"status":"ok","service":"kids-content-engine","version":"3.0.0","render_enabled":os.getenv("RENDER_ENABLED","0")}
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def root():
-    return {"service":"kids-content-engine","status":"ready","version":"2.0.0"}
+    ui=Path.cwd()/"static"/"index.html"
+    if ui.exists():
+        return FileResponse(ui)
+    return {"service":"kids-content-engine","status":"ready","version":"3.0.0"}
+
+@app.get("/api")
+def api_info():
+    return {"service":"kids-content-engine","status":"ready","version":"3.0.0"}
 
 def process_job(job_id, job):
     try:
-        STORE.update(job_id, status="processing")
+        STORE.update(job_id,status="processing")
         episode=job.episode
         if job.topic:
             episode=create_topic_package(job.topic,ROOT,duration=job.duration)["episode"]
@@ -46,12 +54,17 @@ def process_job(job_id, job):
         STORE.update(job_id,status="failed",error=str(exc))
 
 @app.post("/jobs")
-def create_job(job:RenderJob, background_tasks: BackgroundTasks):
+def create_job(job:RenderJob, background_tasks:BackgroundTasks):
     if not job.episode and not job.topic:
         raise HTTPException(400,"provide episode or topic")
     data=STORE.create(job.model_dump())
-    background_tasks.add_task(process_job, data["id"], job)
+    background_tasks.add_task(process_job,data["id"],job)
     return {"status":"accepted","job_id":data["id"]}
+
+@app.get("/jobs")
+def list_jobs():
+    jobs=STORE.list(50)
+    return {"jobs":jobs,"count":len(jobs)}
 
 @app.get("/jobs/{job_id}")
 def get_job(job_id:str):
