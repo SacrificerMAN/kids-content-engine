@@ -1,0 +1,11 @@
+{
+  "title":"Alphabet Adventure",
+  "duration":30,
+  "style":"original_preschool_3d",
+  "characters":["child_01","child_02","friendly_dog"],
+  "scenes":[
+    {"location":"colorful_classroom","duration":10,"actions":["enter","wave","clap"]},
+    {"location":"alphabet_garden","duration":10,"actions":["walk","point","dance"]},
+    {"location":"playground","duration":10,"actions":["jump","wave","celebrate"]}
+  ]
+}
