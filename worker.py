@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException\nfrom fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pipeline.orchestrator import Orchestrator
 from pipeline.job_store import JobStore
