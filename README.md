@@ -47,3 +47,24 @@ The engine creates original characters and story concepts. It is not designed to
 `WORK_ROOT`, `RENDER_ENABLED`, `BLENDER_BIN`, `BLENDER_TIMEOUT_SEC`, `PUBLISH_ENABLED`, `YOUTUBE_ACCESS_TOKEN`, `FACEBOOK_ACCESS_TOKEN`, `INSTAGRAM_ACCESS_TOKEN`.
 
 Never commit credentials.
+
+
+## Production providers
+
+### AI content
+Set `OPENAI_API_KEY` to enable LLM-generated story structure, lyrics, narration and scene prompts. Without it, the engine uses a deterministic original fallback.
+
+### Voice
+Set `TTS_PROVIDER=elevenlabs`, `ELEVENLABS_API_KEY`, and `ELEVENLABS_VOICE_ID` for provider-based voice generation. The local worker continues to support espeak-ng as an engineering fallback.
+
+### Audio
+The production audio path now creates a voice track, a low-volume music bed, then mixes them before muxing into the rendered MP4.
+
+### Publishing
+YouTube publishing is implemented behind `PUBLISH_ENABLED=1` and `YOUTUBE_ACCESS_TOKEN`. Default privacy is `private`. Facebook/Instagram remain explicit adapter targets rather than simulated uploads.
+
+### Artifacts
+The local artifact interface is available now. For Railway-scale production, point `ARTIFACT_ROOT` at a mounted/persistent storage layer or replace the provider with object storage.
+
+## Production roadmap
+The architecture is ready for a durable external queue, dedicated GPU Blender workers, object storage, richer reusable 3D asset libraries, and additional social-platform adapters.
