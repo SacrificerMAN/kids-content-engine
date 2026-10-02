@@ -30,7 +30,7 @@ def synthesize(text, output):
         else:
             output.write_bytes(base64.b64decode(r.json()["audio"]))
         return str(output)
-    return _local_tts(text, output)
+    wav=_local_tts(text, output)\n    return wav
 
 def render_voice_track(text, duration, output):
     raw=Path(output).with_suffix(".source")
