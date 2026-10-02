@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 3 * * *"
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -14,8 +15,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
+      - run: python -m compileall pipeline worker.py
       - run: pytest -q
       - run: python -m pipeline.generate_scene
+
   dry-run:
     needs: validate
     runs-on: ubuntu-latest
@@ -25,4 +28,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
+      - run: python -c "from pipeline.topic_pipeline import create_topic_package; from pathlib import Path; print(create_topic_package('colors', Path('/tmp/kids-demo')))"
       - run: python -c "from pipeline.orchestrator import Orchestrator; print(Orchestrator().run('content/demo_episode.json', dry_run=True))"
