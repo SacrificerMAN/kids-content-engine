@@ -66,6 +66,28 @@ def list_jobs():
     jobs=STORE.list(50)
     return {"jobs":jobs,"count":len(jobs)}
 
+@app.get("/jobs/{job_id}/video")
+def job_video(job_id:str):
+    data=STORE.get(job_id)
+    if not data or not data.get("result"):
+        raise HTTPException(404,"video not ready")
+    path=Path(data["result"].get("render",{}).get("output","")).resolve()
+    root=ROOT.resolve()
+    if not path.exists() or root not in path.parents:
+        raise HTTPException(404,"video not found")
+    return FileResponse(path,media_type="video/mp4",filename=path.name)
+
+@app.get("/jobs/{job_id}/thumbnail")
+def job_thumbnail(job_id:str):
+    data=STORE.get(job_id)
+    if not data or not data.get("result"):
+        raise HTTPException(404,"thumbnail not ready")
+    path=Path(data["result"].get("thumbnail","")).resolve()
+    root=ROOT.resolve()
+    if not path.exists() or root not in path.parents:
+        raise HTTPException(404,"thumbnail not found")
+    return FileResponse(path,media_type="image/svg+xml",filename=path.name)
+
 @app.get("/jobs/{job_id}")
 def get_job(job_id:str):
     data=STORE.get(job_id)
