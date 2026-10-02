@@ -3,11 +3,17 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pipeline.orchestrator import Orchestrator
+from pipeline.job_store import JobStore
+from pipeline.topic_pipeline import create_topic_package
 
-app=FastAPI(title="Kids Content Engine",version="1.0.0")
+app=FastAPI(title="Kids Content Engine",version="2.0.0")
 ROOT=Path(os.getenv("WORK_ROOT","/tmp/kids-content-engine")); ROOT.mkdir(parents=True,exist_ok=True)
+STORE=JobStore(str(ROOT))
+
 class RenderJob(BaseModel):
-    episode:str
+    episode:str | None=None
+    topic:str | None=None
+    duration:float=30
     publish:bool=False
     dry_run:bool=True
 
@@ -19,17 +25,47 @@ def safe_episode(path:str):
     return str(candidate)
 
 @app.get("/health")
-def health(): return {"status":"ok","service":"kids-content-engine","render_enabled":os.getenv("RENDER_ENABLED","0")}
+def health():
+    return {"status":"ok","service":"kids-content-engine","version":"2.0.0","render_enabled":os.getenv("RENDER_ENABLED","0")}
 
 @app.get("/")
-def root(): return {"service":"kids-content-engine","status":"ready","version":"1.0.0"}
+def root():
+    return {"service":"kids-content-engine","status":"ready","version":"2.0.0"}
 
 @app.post("/jobs")
-def create_job(job:RenderJob): return {"status":"accepted","episode":job.episode,"publish":job.publish,"dry_run":job.dry_run}
+def create_job(job:RenderJob):
+    if not job.episode and not job.topic:
+        raise HTTPException(400,"provide episode or topic")
+    data=STORE.create(job.model_dump())
+    try:
+        episode=job.episode
+        if job.topic:
+            episode=create_topic_package(job.topic,ROOT,duration=job.duration)["episode"]
+        else:
+            episode=safe_episode(episode)
+        result=Orchestrator(str(ROOT)).run(episode,publish=job.publish,dry_run=job.dry_run)
+        return STORE.update(data["id"],status="completed",result=result)
+    except Exception as exc:
+        return STORE.update(data["id"],status="failed",error=str(exc))
+
+@app.get("/jobs/{job_id}")
+def get_job(job_id:str):
+    data=STORE.get(job_id)
+    if not data: raise HTTPException(404,"job not found")
+    return data
 
 @app.post("/run")
 def run_job(job:RenderJob):
-    episode=safe_episode(job.episode)
-    if job.publish and os.getenv("PUBLISH_ENABLED","0")!="1": raise HTTPException(403,"publishing disabled")
-    try: return {"status":"completed","result":Orchestrator(str(ROOT)).run(episode,publish=job.publish,dry_run=job.dry_run)}
-    except Exception as exc: raise HTTPException(500,str(exc))
+    if job.topic:
+        episode=create_topic_package(job.topic,ROOT,duration=job.duration)["episode"]
+    elif job.episode:
+        episode=safe_episode(job.episode)
+    else:
+        raise HTTPException(400,"provide episode or topic")
+    if job.publish and os.getenv("PUBLISH_ENABLED","0")!="1":
+        raise HTTPException(403,"publishing disabled")
+    try:
+        return {"status":"completed","result":Orchestrator(str(ROOT)).run(
+            episode,publish=job.publish,dry_run=job.dry_run)}
+    except Exception as exc:
+        raise HTTPException(500,str(exc))
